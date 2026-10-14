@@ -1,0 +1,21 @@
+{
+  "name": "zhuan-design-lint",
+  "version": "2.2.0",
+  "private": true,
+  "type": "module",
+  "description": "转转设计交付前检查 · 基于 Design Lint",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "1.123.0",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
