@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>转转 Design Lint</title><style>/* INLINE_CSS */</style></head>
+<body>
+<header><div class="brand"><span class="brand-icon">✓</span><strong>转转 Design Lint</strong></div><div class="header-tools"><button data-tab="spec">规范</button><button data-tab="settings">设置</button></div></header>
+<main>
+<section id="check-view">
+  <div class="scope-panel"><div class="eyebrow">交付检查 <span id="page-name"></span></div><div class="scope-row"><select id="scope" aria-label="检查范围"><option value="selection">选中图层</option><option value="page">当前页面</option></select><button id="scan" class="primary">开始检查</button><button id="cancel" hidden>取消</button></div><p class="hint" id="selection-hint">在 Figma 中选择要交付的设计稿</p></div>
+  <div class="quick-actions"><button id="auto-repair" disabled><span>✦</span> 一键修复</button><button id="cleanup"><span>⌫</span> 清理图层</button></div>
+  <p class="hint action-hint">明确匹配的项目直接修复；清理前可预览删除范围。</p>
+  <div id="scan-progress" class="progress" hidden><span class="spinner"></span><span id="progress-text">正在检查图层…</span></div>
+  <div id="repair-feedback" class="note" hidden></div>
+  <div id="welcome" class="welcome"><span class="welcome-check">✓</span><h1>交付前，检查一次</h1><p>文字样式 · 颜色关联 · 规范核对<br>找到问题，定位图层，直接修复。</p></div>
+  <div id="results" hidden>
+    <div id="summary" class="summary"></div>
+    <div class="stats"><button data-filter="all" class="active">全部 <span id="count-all">0</span></button><button data-filter="text">文字 <span id="count-text">0</span></button><button data-filter="color">颜色 <span id="count-color">0</span></button><button data-filter="radius">圆角 <span id="count-radius">0</span></button></div>
+    <div class="filter-row"><label class="search"><span>⌕</span><input id="search" placeholder="搜索图层、问题、颜色值" aria-label="搜索检查结果"></label><select id="severity" aria-label="问题级别"><option value="all">全部级别</option><option value="error">待修复</option><option value="warning">待核对</option></select></div>
+    <div class="list-toolbar"><div><button id="show-open" class="text-button active">待处理 <span id="open-count"></span></button><button id="show-ignored" class="text-button">已忽略 <span id="ignored-count"></span></button></div><button id="select-visible" class="text-button">定位筛选结果</button></div>
+    <div class="repair-toolbar"><label><input id="select-repairs" type="checkbox"> 选择筛选结果</label><button id="repair-selected">修复所选 <span id="repair-count">0</span></button></div>
+    <div id="issue-list" class="issue-list"></div>
+    <details class="report-details"><summary>检查范围与导出报告</summary><div class="report-row"><span id="scan-meta"></span><div><button id="export-json">JSON 报告</button><button id="export-csv">CSV 报告</button></div></div>
+    <div id="coverage" class="coverage"></div></details>
+  </div>
+</section>
+<section id="spec-view" hidden></section>
+<section id="settings-view" hidden>
+  <div class="section-title"><h2>检查设置</h2><button data-tab="check">返回检查</button></div>
+  <form id="settings-form">
+    <div class="settings-card"><h3>检查内容</h3>
+      <label><div><strong>文字样式</strong><small>逐段检查混合文字，找出未套用样式的区间</small></div><input type="checkbox" name="text"></label>
+      <label><div><strong>填充颜色</strong><small>检查每层填充的颜色样式或变量关联</small></div><input type="checkbox" name="fill"></label>
+      <label><div><strong>描边颜色</strong><small>检查每层描边的颜色样式或变量关联</small></div><input type="checkbox" name="stroke"></label>
+      <label><div><strong>圆角规范</strong><small>分别核对四个角；直角 0 允许通过</small></div><input type="checkbox" name="radius"></label>
+    </div>
+    <div class="settings-card"><h3>团队规范</h3>
+      <label><div><strong>核对规范数值</strong><small>颜色、透明度、字号、字体、价格字形和圆角</small></div><input type="checkbox" name="checkSpec"></label>
+      <label><div><strong>语义颜色建议</strong><small>基础色引用与明显的文字 / 描边用途提醒</small></div><input type="checkbox" name="semanticHints"></label>
+      <label class="scale-label"><div><strong>规范数值标尺</strong><small>规范未确认 1× / 2×；默认使用原始值</small></div><select name="scale"><option value="1">Figma 原始值</option><option value="0.5">原始值 × 0.5</option></select></label>
+    </div>
+    <div class="settings-card"><h3>检查范围与更新</h3>
+      <label><div><strong>包含隐藏图层</strong><small>同时检查隐藏图层及其子图层</small></div><input type="checkbox" name="includeHidden"></label>
+      <label><div><strong>包含锁定图层</strong><small>同时检查锁定图层及其子图层</small></div><input type="checkbox" name="includeLocked"></label>
+      <label><div><strong>包含矢量与图标</strong><small>插画可按问题填写忽略原因</small></div><input type="checkbox" name="includeVectors"></label>
+      <label><div><strong>修改后自动复查</strong><small>保持原检查范围，不随定位操作改变范围</small></div><input type="checkbox" name="live"></label>
+    </div>
+    <button type="submit" class="primary full">保存设置</button>
+    <button id="clear-ignored" type="button" class="text-button full">恢复本页面全部已忽略问题</button>
+  </form>
+  <div class="note">检查在本地运行。规范来自已核实的变量快照，尚未定义的行高、间距、组件状态等需要人工验收。忽略记录保存在当前 Figma 页面中。</div>
+</section>
+</main>
+<footer><span class="status-dot"></span><span id="footer-status">交付前，检查一次</span><a id="spec-link" target="_blank" rel="noopener noreferrer">查看规范 ↗</a></footer>
+<div id="toast" role="status" hidden></div>
+<dialog id="issue-dialog"><form id="dialog-form"><div id="dialog-content"></div><div class="dialog-actions"><button id="dialog-close" type="button">取消</button><button id="dialog-submit" type="submit" class="primary">确认</button></div></form></dialog>
+<dialog id="repair-dialog"><div class="repair-dialog-header"><h3>选择修复目标</h3><p>选择符合用途的目标值，应用后自动复查。</p><label><input id="auto-repairs" type="checkbox"> 选中可直接修复的项目</label></div><div id="repair-items"></div><div class="dialog-actions"><button id="repair-close">取消</button><button id="repair-apply" class="primary" disabled>应用修复</button></div></dialog>
+<dialog id="cleanup-dialog"><div class="repair-dialog-header"><h3>清理图层</h3><p>空文字、空分组、隐藏图层。删除包含子图层，可在 Figma 撤销。</p><p id="cleanup-meta"></p><label><input id="cleanup-all" type="checkbox" checked> 全选</label></div><div id="cleanup-items"></div><div class="dialog-actions"><button id="cleanup-close">取消</button><button id="cleanup-apply" class="primary" disabled>删除所选</button></div></dialog>
+<script>/* INLINE_JS */</script>
+</body></html>
