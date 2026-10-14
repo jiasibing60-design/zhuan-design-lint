@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { findCandidates, applyCandidate } from '../src/plugin/candidates';
+import { lintNode } from '../src/plugin/rules';
+import { DEFAULT_SETTINGS } from '../src/shared/types';
+const black={type:'SOLID',color:{r:17/255,g:17/255,b:17/255},opacity:1} as SolidPaint;
+test('同值样式和变量候选；透明度不同的变量不匹配；逐层应用保留其他填充',async()=>{
+  const style={id:'S:1',name:'文字/一级',paints:[black]};
+  const vars=[{id:'v1',name:'文字/一级',resolveForConsumer:()=>({value:{...black.color,a:1}})},{id:'v2',name:'蒙层/遮罩',resolveForConsumer:()=>({value:{...black.color,a:0.7}})}];
+  (globalThis as any).figma={getLocalPaintStylesAsync:async()=>[style],variables:{getLocalVariablesAsync:async()=>vars,getVariableByIdAsync:async()=>vars[0],setBoundVariableForPaint:(p:SolidPaint,_field:string,v:any)=>({...p,boundVariables:{color:{type:'VARIABLE_ALIAS',id:v.id}}})}};
+  const issue=lintNode({id:'1:1',name:'矩形',type:'RECTANGLE',path:'Page / 矩形',fills:[black]},DEFAULT_SETTINGS)[0];
+  const node={type:'RECTANGLE',fills:[black,{type:'IMAGE',imageHash:'image1'}],setFillStyleIdAsync:async()=>{}} as any;
+  const found=await findCandidates(issue,node);
+  assert.deepEqual(found.map(c=>c.id),['v1']);
+  node.fills=[black];
+  assert.deepEqual((await findCandidates(issue,node)).map(c=>c.id),['S:1','v1']);
+  node.fills=[black,{type:'IMAGE',imageHash:'image1'}];
+  await applyCandidate(issue,node,found[0]);
+  assert.equal(node.fills[0].boundVariables.color.id,'v1');assert.equal(node.fills[1].imageHash,'image1');
+});
+test('文字样式候选比较行高、字距等属性，应用仅作用于问题区间',async()=>{
+  const font={family:'PingFang SC',style:'Medium'};
+  const style={id:'S:text',name:'正文',fontName:font,fontSize:24,lineHeight:{unit:'AUTO'},letterSpacing:{unit:'PIXELS',value:0},textCase:'ORIGINAL',textDecoration:'NONE',paragraphIndent:0,paragraphSpacing:0};
+  const calls:any[]=[];
+  (globalThis as any).figma={getLocalTextStylesAsync:async()=>[style,{...style,id:'wrong',lineHeight:{unit:'PIXELS',value:30}}],loadFontAsync:async(f:any)=>calls.push(['font',f])};
+  const node={type:'TEXT',getRangeFontName:()=>font,getRangeFontSize:()=>24,getRangeLineHeight:()=>style.lineHeight,getRangeLetterSpacing:()=>style.letterSpacing,getRangeTextCase:()=>style.textCase,getRangeTextDecoration:()=>style.textDecoration,paragraphIndent:0,paragraphSpacing:0,setRangeTextStyleIdAsync:async(...args:any[])=>calls.push(['apply',...args])} as any;
+  const issue=lintNode({id:'1:1',name:'文字',type:'TEXT',path:'Page / 文字',runs:[{start:2,end:4,text:'文字',styleId:'',font,size:24,fills:[],fillStyleId:''}]},DEFAULT_SETTINGS)[0];
+  const found=await findCandidates(issue,node);assert.deepEqual(found.map(c=>c.id),['S:text']);
+  await applyCandidate(issue,node,found[0]);assert.deepEqual(calls[1],['apply',2,4,'S:text']);
+});
+test('已启用 ZHUAN 团队库候选仅在应用时导入，最新值不同则阻止改色',async()=>{
+  let imports=0;
+  const v={id:'remote1',name:'文字/一级',resolveForConsumer:()=>({value:{r:0,g:0,b:0,a:1}})};
+  (globalThis as any).figma={getLocalPaintStylesAsync:async()=>[],variables:{getLocalVariablesAsync:async()=>[],importVariableByKeyAsync:async()=>{imports++;return v;}},teamLibrary:{getAvailableLibraryVariableCollectionsAsync:async()=>[{name:'ZHUAN / Color',key:'collection1'}],getVariablesInLibraryCollectionAsync:async()=>[{name:'文字/一级',key:'published1',resolvedType:'COLOR'}]}};
+  const issue=lintNode({id:'1:1',name:'矩形',type:'RECTANGLE',path:'Page / 矩形',fills:[black]},DEFAULT_SETTINGS)[0];
+  const node={type:'RECTANGLE',fills:[black]} as any;
+  const found=await findCandidates(issue,node);assert.equal(imports,0);assert.equal(found[0].key,'published1');
+  await assert.rejects(()=>applyCandidate(issue,node,found[0]),/当前模式值/);
+  assert.equal(imports,1);assert.equal(node.fills[0],black);
+});
